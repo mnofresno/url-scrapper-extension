@@ -27,7 +27,8 @@
 /* exported SCRAPPERS_KEY,
   URL_SCRAPPER_SETTINGS_SCHEMA,
   initTranslations,
-  getSettings */
+  getSettings,
+  SettingsHelper */
 const Gettext = imports.gettext;
 const Gio = imports.gi.Gio;
 
@@ -98,4 +99,47 @@ function getSettings(schema) {
     }
 
     return new Gio.Settings({settings_schema: schemaObj});
+}
+
+function SettingsHelper(dataChangedCallback) {
+  let self = this;
+
+  self.loadConfig = function() {
+    self.Settings = getSettings(URL_SCRAPPER_SETTINGS_SCHEMA);
+    self.SettingsC = self.Settings.connect('changed', dataChangedCallback);
+  };
+
+  self.getScrappers = function() {
+    if (!self.Settings) {
+      self.loadConfig();
+    }
+
+    let scrappers = self.Settings.get_string(SCRAPPERS_KEY);
+
+    try {
+      scrappers = JSON.parse(scrappers);
+    } catch (ex) {
+      log('parse ex: ' + ex);
+      scrappers = [];
+
+      self.Settings.set_string(SCRAPPERS_KEY, JSON.stringify(scrappers));
+    }
+
+    return scrappers;
+  };
+
+  self.setScrappers = function(v) {
+
+    if (!self.Settings) {
+      self.loadConfig();
+
+    }
+    let scrappers = v;
+    if (!Array.isArray(scrappers)) {
+      scrappers = [];
+    }
+    self.Settings.set_string(SCRAPPERS_KEY, JSON.stringify(scrappers));
+  };
+
+  return self;
 }

@@ -36,6 +36,7 @@ const Convenience = Me.imports.convenience;
 const EXTENSIONDIR = Me.dir.get_path();
 const showDialogBox = Me.imports.lib.showDialogBox;
 const log = global.log;
+const UiControls = Me.imports.uicontrols.UiControls;
 
 const UrlScrapperPrefsWidget = function() {
   const params = {
@@ -47,17 +48,15 @@ const UrlScrapperPrefsWidget = function() {
   const GDialog = new GObject.Class(params);
 
   let self = new GDialog();
-
   self.mScrappers = [];
 
-  self.x = [0, 1];
-  self.y = [0, 1];
-  self.right_widget = null;
+  self.rightWidget = null;
 
   self.editingItem = {};
   self.editingItemIndex = 0;
 
   self._init = function() {
+    self.settingsHelper = new Convenience.SettingsHelper(self.refreshUI);
     log('init dialog');
 
     self.initWindow();
@@ -68,18 +67,17 @@ const UrlScrapperPrefsWidget = function() {
   self.Window = new Gtk.Builder();
 
   self.initWindow = function() {
-    self.mScrappers = [];
-
     self.Window.add_from_file(EXTENSIONDIR + '/url-scrapper-settings.ui');
     self.MainWidget = self.Window.get_object('main-widget');
     self.treeview = self.Window.get_object('tree-treeview');
     self.liststore = self.Window.get_object('liststore');
     self.Iter = self.liststore.get_iter_first();
-    let button = self.Window.get_object('tree-toolbutton-add');
-
-    button.connect('clicked', self.addScrapper);
-    self.Window.get_object('tree-toolbutton-remove').connect('clicked', self.removeScrapper);
-    self.Window.get_object('treeview-selection').connect('changed', self.selectionChanged);
+    self.treeViewSelection = self.Window.get_object('treeview-selection');
+    let addScrapperButton = self.Window.get_object('tree-toolbutton-add');
+    self.removeScrapperButton = self.Window.get_object('tree-toolbutton-remove');
+    addScrapperButton.connect('clicked', self.addScrapper);
+    self.removeScrapperButton.connect('clicked', self.removeScrapper);
+    self.treeViewSelection.connect('changed', self.selectionChanged);
 
     self.treeview.set_model(self.liststore);
 
@@ -111,23 +109,17 @@ const UrlScrapperPrefsWidget = function() {
     self.addLabel('Result data symbol:');
     self.addTextBox('symbol');
 
-
-    let scrappers = self.getScrappers();
+    let scrappers = self.settingsHelper.getScrappers();
     self.editingItemIndex = 0;
     self.changeSelection();
-    self.editingItem = scrappers[self.editingItemIndex];
+    self.editingItem = !!scrappers[self.editingItemIndex] ? scrappers[self.editingItemIndex] : {};
     self.refreshUI();
   };
 
   self.refreshUI = function() {
-    self.MainWidget = self.Window.get_object('main-widget');
-    self.treeview = self.Window.get_object('tree-treeview');
-    self.liststore = self.Window.get_object('liststore');
-    self.Iter = self.liststore.get_iter_first();
+    let scrappers = self.settingsHelper.getScrappers();
 
-    let scrappers = self.getScrappers();
-    log('readed scrappers: ' + JSON.stringify(scrappers));
-    self.Window.get_object('tree-toolbutton-remove').sensitive = Boolean(scrappers.length);
+    self.removeScrapperButton.sensitive = Boolean(scrappers.length);
 
     let scrappersVariation = !!(scrappers.length - self.mScrappers.length);
 
@@ -174,7 +166,7 @@ const UrlScrapperPrefsWidget = function() {
       // {
       //   config[i][0].active = self[config[i][1]];
       // }
-      if (typeof config[i][0].get_text != 'undefined' ) {
+      if (typeof config[i][0].get_text !== 'undefined') {
         let propertyName = config[i][1];
         let value = self.editingItem[propertyName];
         if (!!value) {
@@ -188,10 +180,11 @@ const UrlScrapperPrefsWidget = function() {
 
   self.initConfigWidget = function() {
     self.configWidgets.splice(0, self.configWidgets.length);
-    let a = self.Window.get_object('right-widget-table');
-    a.visible = 1;
-    a.can_focus = 0;
-    self.right_widget = a;
+    let rightWidgetTable = self.Window.get_object('right-widget-table');
+    rightWidgetTable.visible = 1;
+    rightWidgetTable.can_focus = 0;
+    self.rightWidget = rightWidgetTable;
+    new UiControls(self);
   };
 
   self.configWidgets = [];
@@ -203,10 +196,10 @@ const UrlScrapperPrefsWidget = function() {
       let rowNumber = parseInt(selectedRow.to_string());
       if (rowNumber !== self.editingItemIndex) {
         self.editingItemIndex = rowNumber;
-        let scrappers = self.getScrappers();
+        let scrappers = self.settingsHelper.getScrappers();
         let scrapper = scrappers[rowNumber];
-        self.editingItem = scrapper;
-        log('currentRow: ' + rowNumber);
+        self.editingItem = !!scrapper ? scrapper : {};
+
         self.refreshUI();
       }
     }
@@ -218,134 +211,41 @@ const UrlScrapperPrefsWidget = function() {
     self.treeview.get_selection().select_path(path);
   };
 
-  self.loadConfig = function() {
-    self.Settings = Convenience.getSettings(Convenience.URL_SCRAPPER_SETTINGS_SCHEMA);
-    self.SettingsC = self.Settings.connect('changed', function() {
-      self.refreshUI();
-    });
-  };
-
-  self.getScrappers = function() {
-    log('getter scrapper');
-
-    if (!self.Settings) {
-      self.loadConfig();
-    }
-
-    let scrappers = self.Settings.get_string(Convenience.SCRAPPERS_KEY);
-
-    log('PREPARSE: ' + scrappers);
-    try {
-      scrappers = JSON.parse(scrappers);
-    } catch (ex) {
-      log('parse ex: ' + ex);
-      scrappers = [];
-
-      self.Settings.set_string(Convenience.SCRAPPERS_KEY, JSON.stringify(scrappers));
-    }
-
-    log('Scrappers: ' + JSON.stringify(scrappers));
-
-    return scrappers;
-  };
-
-  self.setScrappers = function(v) {
-    log('setter scrapper');
-    if (!self.Settings) {
-      self.loadConfig();
-      log('config loaded');
-    }
-    let scrappers = v;
-    if (!Array.isArray(scrappers)) {
-      scrappers = [];
-    }
-    self.Settings.set_string(Convenience.SCRAPPERS_KEY, JSON.stringify(scrappers));
-  };
-
   self.saveEditingItem = function() {
-    log('pre saving editing item');
+
     if (!self.editingItem || isNaN(self.editingItemIndex)) {
       return;
     }
 
-    let scrappers = self.getScrappers();
+    let scrappers = self.settingsHelper.getScrappers();
 
     scrappers[self.editingItemIndex] = self.editingItem;
 
-    self.setScrappers(scrappers);
-    log('saved editing item');
+    self.settingsHelper.setScrappers(scrappers);
+
   };
 
   self.addScrapper = function() {
-    log('add scrapper pressed');
 
     showDialogBox('Add new URL Scrapper',
       'Please write the name',
       function(input) {
-        log('added scrapper');
-        let scrappers = self.getScrappers();
-        log('scrappers pre push');
-        scrappers.push({name: input});
-        log('scrappers pre setter');
-        self.setScrappers(scrappers);
+
+        let scrappers = self.settingsHelper.getScrappers();
+
+        self.editingItemIndex = scrappers.length;
+        self.editingItem = {name: input};
+        scrappers.push(self.editingItem);
+        self.settingsHelper.setScrappers(scrappers);
+        self.changeSelection();
     });
   };
 
   self.removeScrapper = function() {
-    let scrappers = self.getScrappers();
+    let scrappers = self.settingsHelper.getScrappers();
     scrappers.splice(self.editingItemIndex, 1);
-    self.setScrappers(scrappers);
+    self.settingsHelper.setScrappers(scrappers);
     return 0;
-  };
-
-  self.addLabel = function(text) {
-    let l = new Gtk.Label({label: text, xalign: 0});
-    l.visible = 1;
-    l.can_focus = 0;
-    self.right_widget.attach(l, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
-    self.inc();
-  };
-
-  self.addTextBox = function(b) {
-    let entry = new Gtk.Entry();
-
-    self.configWidgets.push([entry, b]);
-    entry.visible = 1;
-    entry.can_focus = 1;
-    entry.width_request = 100;
-
-    entry.active_id = String(b);
-    entry.connect('changed', function() {
-      self.editingItem[b] = entry.get_text();
-      self.saveEditingItem();
-    });
-
-    self.right_widget.attach(entry, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
-    self.inc();
-
-    return 0;
-  };
-
-  self.inc = function(...args) {
-    if (args[0]) {
-      self.x[0] = 0;
-      self.x[1] = 1;
-      self.y[0] = 0;
-      self.y[1] = 1;
-      return 0;
-    }
-
-    if (self.x[0] == 1) {
-      self.x[0] = 0;
-      self.x[1] = 1;
-      self.y[0] += 1;
-      self.y[1] += 1;
-      return 0;
-    } else {
-      self.x[0] += 1;
-      self.x[1] += 1;
-      return 0;
-    }
   };
 
   self._init();
@@ -354,7 +254,7 @@ const UrlScrapperPrefsWidget = function() {
 };
 
 function init() {
-  log('first init prefs');
+
 }
 
 function buildPrefsWidget() {

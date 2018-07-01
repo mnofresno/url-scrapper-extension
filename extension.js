@@ -45,8 +45,6 @@ const Util = imports.misc.util;
 const Convenience = Me.imports.convenience;
 let showMessage = Me.imports.lib.showMessage;
 
-let _httpSession;
-let receivedData;
 
 /* global init */
 const URLScrapperExtension = function() {
@@ -62,9 +60,12 @@ const URLScrapperExtension = function() {
 
   const self = new PanelMenuButton();
 
+  let _httpSession;
+  let receivedData;
   self.output = [];
 
   self._init = function() {
+    self.settingsHelper = new Convenience.SettingsHelper(self._refresh);
     let box = new St.BoxLayout();
     let icon = new St.Icon({icon_name: 'system-search-symbolic', style_class: 'system-status-icon'});
     self.buttonText = new St.Label({text: ' Loading... ',
@@ -77,8 +78,8 @@ const URLScrapperExtension = function() {
     self.actor.add_child(box);
 
     let resumen = new PopupMenu.PopupMenuItem('Resumen');
-    let config = new PopupMenu.PopupMenuItem('Configurar extensión...');
-    let about = new PopupMenu.PopupMenuItem('Acerca de...');
+    let config = new PopupMenu.PopupMenuItem('Extension settings...');
+    let about = new PopupMenu.PopupMenuItem('About...');
     config.connect('activate', self.onPreferencesActivate);
     resumen.connect('activate', function() {
       self._showResumen();
@@ -93,36 +94,9 @@ const URLScrapperExtension = function() {
     self.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
     self.menu.addMenuItem(about);
 
-    self.output = new Array(self.getScrappers().length);
+    self.output = new Array(self.settingsHelper.getScrappers().length);
 
     self._refresh();
-  };
-
-  self.getScrappers = function() {
-    if (!self.Settings) {
-      self.loadConfig();
-    }
-
-    let scrappers = self.Settings.get_string(Convenience.SCRAPPERS_KEY);
-
-    try {
-      scrappers = JSON.parse(scrappers);
-    } catch (ex) {
-      scrappers = [];
-
-      self.Settings.set_string(Convenience.SCRAPPERS_KEY, JSON.stringify(scrappers));
-    }
-
-    return scrappers;
-  };
-
-  self.SettingsC = null;
-
-  self.loadConfig = function() {
-    self.Settings = Convenience.getSettings(Convenience.URL_SCRAPPER_SETTINGS_SCHEMA);
-    self.SettingsC = self.Settings.connect('changed', function() {
-      self._loadData();
-    });
   };
 
   self._showResumen = function() {
@@ -141,27 +115,43 @@ const URLScrapperExtension = function() {
   };
 
   self._refresh = function() {
-    self._loadData(self._refreshUI);
+    self._loadData();
     self._removeTimeout();
     self._timeout = Mainloop.timeout_add_seconds(10, self._refresh);
     return true;
   };
 
-  self._loadData = function(callbackFunction) {
-    let scrappers = self.getScrappers();
+  self.isValidScrapper = function(scrapper) {
+    return !!scrapper.url &&
+      !!scrapper.path &&
+      !!scrapper.name &&
+      !!scrapper.token &&
+      !!scrapper.symbol;
+  };
+
+  self._loadData = function() {
+    let scrappers = self.settingsHelper.getScrappers();
+    let invalidScrappers = 0;
     for (let currentIndex = 0; currentIndex < scrappers.length; currentIndex++) {
       let currentScrapper = scrappers[currentIndex];
-      self._loadItemData(callbackFunction, currentIndex, currentScrapper);
+      if (!self.isValidScrapper(currentScrapper)) {
+        invalidScrappers++;
+        continue;
+      }
+      self._loadItemData(currentIndex, currentScrapper);
+    }
+    if (invalidScrappers === scrappers.length) {
+      self.buttonText.text = 'no valid scrappers configured';
     }
   };
 
-  self._loadItemData = function(callbackFunction, currentIndex, currentScrapper) {
+  self._loadItemData = function(currentIndex, currentScrapper) {
     _httpSession = new Soup.Session();
     let message = Soup.form_request_new_from_hash('GET', currentScrapper.url, {});
     message.request_headers.append('Authorization', 'bearer ' + currentScrapper.token);
     _httpSession.queue_message(message, function(_httpSession, message) {
           if (message.status_code !== 200) {
-            showMessage(message);
+            showMessage(message.toString());
             return;
           }
 
@@ -187,11 +177,11 @@ const URLScrapperExtension = function() {
   self._refreshUI = function(data) {
     let textOutput = data.path(data.rawJson);
 
-    textOutput = data.symbol + textOutput;
+    textOutput = data.symbol + ' ' + textOutput;
 
     self.output[data.currentIndex] = textOutput;
 
-    self.buttonText.set_text(self.output.join(' '));
+    self.buttonText.set_text(self.output.join(' | '));
   };
 
   self._removeTimeout = function() {
@@ -238,4 +228,3 @@ function disable() {
   urlScrapperMenu.stop();
   urlScrapperMenu.destroy();
 }
-
