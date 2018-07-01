@@ -24,22 +24,15 @@
  *
  */
 
+/*globals imports, global */
 const Gtk = imports.gi.Gtk;
-const GLib = imports.gi.GLib;
 const GObject = imports.gi.GObject;
-const GtkBuilder = Gtk.Builder;
-const Gio = imports.gi.Gio;
-const Soup = imports.gi.Soup;
-const Lang = imports.lang;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Convenience = Me.imports.convenience;
 const EXTENSIONDIR = Me.dir.get_path();
-
-let showDialogBox = Me.imports.lib.showDialogBox;
-let showMessage = Me.imports.lib.showMessage;
-
-let log = global.log;
+const showDialogBox = Me.imports.lib.showDialogBox;
+const log = global.log;
 
 const UrlScrapperPrefsWidget = function()
 {
@@ -51,7 +44,7 @@ const UrlScrapperPrefsWidget = function()
 
   const GDialog = new GObject.Class(params);
 
-  var self = new GDialog();
+  let self = new GDialog();
 
   self.mScrappers = [];
 
@@ -142,10 +135,10 @@ const UrlScrapperPrefsWidget = function()
 
     if(!scrappersVariation)
     {
-      for(let i = 0; i < scrappers.length; i++)
-			{
-				if(scrappers[i] === self.mScrappers[i])
-				  scrappersVariation = true;
+      for(let i = 0; i < scrappers.length; i++) {
+				if(scrappers[i] === self.mScrappers[i]) {
+          scrappersVariation = true;
+        }
 			}
     }
 

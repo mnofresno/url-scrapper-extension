@@ -24,7 +24,7 @@
  *
  */
 
-const Tweener = imports.ui.tweener;
+
 const St = imports.gi.St;
 const Main = imports.ui.main;
 const Soup = imports.gi.Soup;
@@ -35,27 +35,32 @@ const PanelMenu = imports.ui.panelMenu;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const EXTENSIONDIR = Me.dir.get_path();
-const Config = Me.imports.config;
 const PopupMenu = imports.ui.popupMenu;
 const GLib = imports.gi.GLib;
 const Util = imports.misc.util;
-Me.logPlease = log;
-//let scrappers = Config.scrappers;
+
 const Convenience = Me.imports.convenience;
 let showMessage = Me.imports.lib.showMessage;
 
-let showDialogBox = Me.imports.lib.showDialogBox;
-
 let _httpSession;
 let receivedData;
-let self = null;
 
-const URLScrapperExtension = new Lang.Class({
-  Name: 'URLScrapperExtension',
-  Extends: PanelMenu.Button,
-  _init: function () {
-    self = this;
-    self.parent(0.0, "URL Scrapper Extension", false);
+const URLScrapperExtension = function() {
+  const params = {
+    Name: 'URLScrapperExtension',
+    Extends: PanelMenu.Button,
+    _init: function() {
+      this.parent(0.0, "URL Scrapper Extension", false);
+    },
+  };
+
+  let PanelMenuButton = new Lang.Class(params);
+
+  const self = new PanelMenuButton();
+
+  self.output = [];
+
+  self._init = function() {
     let box = new St.BoxLayout();
 		let icon =  new St.Icon({ icon_name: 'system-search-symbolic', style_class: 'system-status-icon'});
     self.buttonText = new St.Label({ text: ' Loading... ',
@@ -65,7 +70,7 @@ const URLScrapperExtension = new Lang.Class({
 		box.add(self.buttonText);
     box.add(PopupMenu.arrowIcon(St.Side.BOTTOM));
 
-		this.actor.add_child(box);
+		self.actor.add_child(box);
 
     let resumen = new PopupMenu.PopupMenuItem('Resumen');
     let config = new PopupMenu.PopupMenuItem('Configurar extensión...');
@@ -77,17 +82,17 @@ const URLScrapperExtension = new Lang.Class({
       showMessage(aboutFileContents);
     });
 
-    this.menu.addMenuItem(resumen);
-		this.menu.addMenuItem(config);
-		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-		this.menu.addMenuItem(about);
+    self.menu.addMenuItem(resumen);
+	  self.menu.addMenuItem(config);
+	  self.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+	  self.menu.addMenuItem(about);
 
-    self.output = new Array(this.getScrappers().length);
+    self.output = new Array(self.getScrappers().length);
 
     self._refresh();
-  },
-  getScrappers: function()
-  {
+  };
+
+  self.getScrappers = function() {
     if(!self.Settings)
     {
       self.loadConfig();
@@ -106,16 +111,18 @@ const URLScrapperExtension = new Lang.Class({
     }
 
     return scrappers;
-  },
-  output: [],
-  SettingsC: null,
-	loadConfig: function()
+  };
+
+  self.SettingsC = null;
+
+	self.loadConfig = function()
 	{
     self.Settings = Convenience.getSettings(Convenience.URL_SCRAPPER_SETTINGS_SCHEMA);
     self.SettingsC = self.Settings.connect("changed",function(){ self._loadData();});
-  },
-  _showResumen: function() {
-    let f = function(data){
+  };
+
+  self._showResumen = function() {
+    let f = function(){
 
       let r = receivedData.resumen;
       showMessage("Diferencia: $ " +  r.diferencia +
@@ -126,25 +133,28 @@ const URLScrapperExtension = new Lang.Class({
 
     };
 
-    f();
+    if(!!receivedData) {
+      f();
+    }
+  };
 
-  },
-
-  _refresh: function () {
+  self._refresh = function () {
     self._loadData(self._refreshUI);
     self._removeTimeout();
     self._timeout = Mainloop.timeout_add_seconds(10, self._refresh);
     return true;
-  },
-  _loadData: function(callbackFunction){
+  };
+
+  self._loadData = function(callbackFunction){
     let scrappers = self.getScrappers();
     for(let currentIndex = 0; currentIndex < scrappers.length; currentIndex++)
     {
       let currentScrapper = scrappers[currentIndex];
       self._loadItemData(callbackFunction, currentIndex, currentScrapper);
     }
-  },
-  _loadItemData: function (callbackFunction, currentIndex, currentScrapper) {
+  };
+
+  self._loadItemData = function (callbackFunction, currentIndex, currentScrapper) {
     _httpSession = new Soup.Session();
     let message = Soup.form_request_new_from_hash('GET', currentScrapper.url, {});
     message.request_headers.append("Authorization", "bearer " + currentScrapper.token);
@@ -156,18 +166,25 @@ const URLScrapperExtension = new Lang.Class({
           }
 
           let json = JSON.parse(message.response_body.data);
+
+          /* jshint evil:true */
+          let pathProjector = new Function('x', 'return x' + currentScrapper.path + ';');
+          /* jshint evil:false */
+
           self._refreshUI({
             rawJson: json,
             symbol: currentScrapper.symbol,
-            path: new Function('x', 'return x' + currentScrapper.path + ';'),
+            path: pathProjector,
             currentIndex: currentIndex
           });
-          if(currentIndex === 1) receivedData = json;
+          if(currentIndex === 1) {
+            receivedData = json;
+          }
         }
     );
-  },
+  };
 
-  _refreshUI: function (data) {
+  self._refreshUI = function (data) {
     let textOutput = data.path(data.rawJson);
 
     textOutput = data.symbol + textOutput;
@@ -175,44 +192,51 @@ const URLScrapperExtension = new Lang.Class({
     self.output[data.currentIndex] = textOutput;
 
     self.buttonText.set_text(self.output.join(' '));
-  },
+  };
 
-  _removeTimeout: function () {
+  self._removeTimeout = function () {
     if (self._timeout) {
       Mainloop.source_remove(self._timeout);
       self._timeout = null;
     }
-  },
+  };
 
-  stop: function () {
-    if (_httpSession !== undefined)
+  self.stop = function () {
+    if (_httpSession !== undefined) {
       _httpSession.abort();
+    }
     _httpSession = undefined;
 
-    if (self._timeout)
+    if (self._timeout) {
       Mainloop.source_remove(self._timeout);
+    }
     self._timeout = undefined;
 
     self.menu.removeAll();
-  },
-  onPreferencesActivate: function()
-  {
+  };
+
+  self.onPreferencesActivate = function() {
 		Util.spawn(["gnome-shell-extension-prefs","url-scrapper-extension@mnofresno"]);
 		return 0;
-  },
-});
+  };
+
+  self._init();
+  return self;
+};
+
 
 let urlScrapperMenu;
 
-function init() {
+
+function init() { // jshint ignore:line
 }
 
-function enable() {
-	urlScrapperMenu = new URLScrapperExtension;
+function enable() { // jshint ignore:line
+	urlScrapperMenu = new URLScrapperExtension();
 	Main.panel.addToStatusArea('url-scrapper', urlScrapperMenu);
 }
 
-function disable() {
+function disable() { // jshint ignore:line
 	urlScrapperMenu.stop();
 	urlScrapperMenu.destroy();
 }

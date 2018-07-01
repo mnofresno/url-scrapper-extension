@@ -92,6 +92,11 @@ function showMessage(message) {
     text.set_position(monitor.x + Math.floor(monitor.width / 2 - text.width / 2),
                       monitor.y + Math.floor(monitor.height / 2 - text.height / 2));
 
+    let hideMsg = function()
+    {
+        Main.uiGroup.remove_actor(text);
+        text = null;
+    };
     Tweener.addTween(text,
                      { opacity: 0,
                        time: 20,
@@ -100,9 +105,4 @@ function showMessage(message) {
 
     text.connect('button-press-event', hideMsg);
 
-    var hideMsg = function()
-    {
-        Main.uiGroup.remove_actor(text);
-        text = null;
-    };
 }
