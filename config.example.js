@@ -1,8 +1,8 @@
 /*
  *
  *  URL Scrapper Extension
- *  - Displays a small weather information on the top panel.
- *  - On click, gives a popup with details about the weather.
+ *  - Displays a small url-scrapped information on the top panel.
+ *  - On click, gives a popup with details about the url-scrapped.
  *
  * Copyright (C) 2011 - 2013
  *     Mariano Fresno <mnofresno@gmail.com>

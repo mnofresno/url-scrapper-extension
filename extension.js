@@ -1,8 +1,8 @@
 /*
  *
  *  URL Scrapper Extension
- *  - Displays a small weather information on the top panel.
- *  - On click, gives a popup with details about the weather.
+ *  - Displays a small url-scrapped information on the top panel.
+ *  - On click, gives a popup with details about the url-scrapped.
  *
  * Copyright (C) 2011 - 2013
  *     Mariano Fresno <mnofresno@gmail.com>
@@ -34,32 +34,87 @@ const Clutter = imports.gi.Clutter;
 const PanelMenu = imports.ui.panelMenu;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
+const EXTENSIONDIR = Me.dir.get_path();
 const Config = Me.imports.config;
+const PopupMenu = imports.ui.popupMenu;
+const GLib = imports.gi.GLib;
+const Util = imports.misc.util;
+Me.logPlease = log;
+//let scrappers = Config.scrappers;
+const Convenience = Me.imports.convenience;
+let showMessage = Me.imports.lib.showMessage;
 
-let scrappers = Config.scrappers;
+let showDialogBox = Me.imports.lib.showDialogBox;
 
-let output = new Array(scrappers.length);
 let _httpSession;
 let receivedData;
+let self = null;
+
 const URLScrapperExtension = new Lang.Class({
   Name: 'URLScrapperExtension',
   Extends: PanelMenu.Button,
-
   _init: function () {
-    this.parent(0.0, "URL Scrapper Extension", false);
-    this.buttonText = new St.Label({
-      text: _("Cargarndo..."),
-      y_align: Clutter.ActorAlign.CENTER
-    });
-    
-    this.actor.add_actor(this.buttonText);
-    this._refresh();
-    this.actor.connect('button-press-event', this._showResumen);
-  },
+    self = this;
+    self.parent(0.0, "URL Scrapper Extension", false);
+    let box = new St.BoxLayout();
+		let icon =  new St.Icon({ icon_name: 'system-search-symbolic', style_class: 'system-status-icon'});
+    self.buttonText = new St.Label({ text: ' Loading... ',
+    y_expand: true,
+    y_align: Clutter.ActorAlign.CENTER });
+    box.add(icon);
+		box.add(self.buttonText);
+    box.add(PopupMenu.arrowIcon(St.Side.BOTTOM));
 
+		this.actor.add_child(box);
+
+    let resumen = new PopupMenu.PopupMenuItem('Resumen');
+    let config = new PopupMenu.PopupMenuItem('Configurar extensión...');
+    let about = new PopupMenu.PopupMenuItem('Acerca de...');
+    config.connect('activate', self.onPreferencesActivate);
+    resumen.connect('activate', function(){ self._showResumen();});
+    about.connect('activate', function(){
+      let aboutFileContents = String(GLib.file_get_contents(EXTENSIONDIR + "/ABOUT")[1]);
+      showMessage(aboutFileContents);
+    });
+
+    this.menu.addMenuItem(resumen);
+		this.menu.addMenuItem(config);
+		this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+		this.menu.addMenuItem(about);
+
+    self.output = new Array(this.getScrappers().length);
+
+    self._refresh();
+  },
+  getScrappers: function()
+  {
+    if(!self.Settings)
+    {
+      self.loadConfig();
+    }
+
+    let scrappers = self.Settings.get_string(Convenience.SCRAPPERS_KEY);
+
+    try{
+      scrappers = JSON.parse(scrappers);
+    }
+    catch(ex)
+    {
+      scrappers = [];
+
+      self.Settings.set_string(Convenience.SCRAPPERS_KEY, JSON.stringify(scrappers));
+    }
+
+    return scrappers;
+  },
+  output: [],
+  SettingsC: null,
+	loadConfig: function()
+	{
+    self.Settings = Convenience.getSettings(Convenience.URL_SCRAPPER_SETTINGS_SCHEMA);
+    self.SettingsC = self.Settings.connect("changed",function(){ self._loadData();});
+  },
   _showResumen: function() {
-    
-    
     let f = function(data){
 
       let r = receivedData.resumen;
@@ -68,68 +123,64 @@ const URLScrapperExtension = new Lang.Class({
                   "\nTotal Mensual: $ " + r.totalMensual +
                   "\nTotal Reintegros Mensuales: $ " + r.reintegroMensualTotal +
                   "\nTotal Mensual Propio: $ " + r.totalMensualPropio);
-                  
+
     };
 
     f();
+
   },
 
   _refresh: function () {
-    this._loadData(this._refreshUI);
-    this._removeTimeout();
-    this._timeout = Mainloop.timeout_add_seconds(10, Lang.bind(this, this._refresh));
+    self._loadData(self._refreshUI);
+    self._removeTimeout();
+    self._timeout = Mainloop.timeout_add_seconds(10, self._refresh);
     return true;
   },
   _loadData: function(callbackFunction){
+    let scrappers = self.getScrappers();
     for(let currentIndex = 0; currentIndex < scrappers.length; currentIndex++)
     {
       let currentScrapper = scrappers[currentIndex];
-      this._loadItemData(callbackFunction, currentIndex, currentScrapper);
+      self._loadItemData(callbackFunction, currentIndex, currentScrapper);
     }
   },
   _loadItemData: function (callbackFunction, currentIndex, currentScrapper) {
-    let params = {
-      amount: '1000',
-      sourceCurrency: 'USD',
-      targetCurrency: 'ARS'
-    };
     _httpSession = new Soup.Session();
-    let message = Soup.form_request_new_from_hash('GET', currentScrapper.url, params);
+    let message = Soup.form_request_new_from_hash('GET', currentScrapper.url, {});
     message.request_headers.append("Authorization", "bearer " + currentScrapper.token);
-    _httpSession.queue_message(message, Lang.bind(this, function (_httpSession, message) {
+    _httpSession.queue_message(message, function (_httpSession, message) {
           if (message.status_code !== 200)
           {
             showMessage(message);
             return;
           }
-        
+
           let json = JSON.parse(message.response_body.data);
-          this._refreshUI({
+          self._refreshUI({
             rawJson: json,
             symbol: currentScrapper.symbol,
-            path: currentScrapper.path,
-            currentIndex: currentIndex        
+            path: new Function('x', 'return x' + currentScrapper.path + ';'),
+            currentIndex: currentIndex
           });
-          receivedData = json;
+          if(currentIndex === 1) receivedData = json;
         }
-      )
     );
   },
 
   _refreshUI: function (data) {
     let textOutput = data.path(data.rawJson);
-    
-    textOutput = data.symbol + textOutput;
-    
-    output[data.currentIndex] = textOutput;
 
-    this.buttonText.set_text(output.join(' '));
+    textOutput = data.symbol + textOutput;
+
+    self.output[data.currentIndex] = textOutput;
+
+    self.buttonText.set_text(self.output.join(' '));
   },
 
   _removeTimeout: function () {
-    if (this._timeout) {
-      Mainloop.source_remove(this._timeout);
-      this._timeout = null;
+    if (self._timeout) {
+      Mainloop.source_remove(self._timeout);
+      self._timeout = null;
     }
   },
 
@@ -138,12 +189,17 @@ const URLScrapperExtension = new Lang.Class({
       _httpSession.abort();
     _httpSession = undefined;
 
-    if (this._timeout)
-      Mainloop.source_remove(this._timeout);
-    this._timeout = undefined;
+    if (self._timeout)
+      Mainloop.source_remove(self._timeout);
+    self._timeout = undefined;
 
-    this.menu.removeAll();
-  }
+    self.menu.removeAll();
+  },
+  onPreferencesActivate: function()
+  {
+		Util.spawn(["gnome-shell-extension-prefs","url-scrapper-extension@mnofresno"]);
+		return 0;
+  },
 });
 
 let urlScrapperMenu;
@@ -159,34 +215,5 @@ function enable() {
 function disable() {
 	urlScrapperMenu.stop();
 	urlScrapperMenu.destroy();
-}
-
-function showMessage(message) {
-    let text;
-    if (!text) {
-        text =  new St.Label({ style_class: 'helloworld-label', text: message });
-        Main.uiGroup.add_actor(text);
-    }
-
-    text.opacity = 255;
-
-    let monitor = Main.layoutManager.primaryMonitor;
-
-    text.set_position(monitor.x + Math.floor(monitor.width / 2 - text.width / 2),
-                      monitor.y + Math.floor(monitor.height / 2 - text.height / 2));
-
-    Tweener.addTween(text,
-                     { opacity: 0,
-                       time: 20,
-                       transition: 'easeOutQuad',
-                       onComplete: hideMsg });
-
-    text.connect('button-press-event', hideMsg);
-
-    var hideMsg = function()
-    {
-        Main.uiGroup.remove_actor(text);
-        text = null;
-    };
 }
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-shell-extension-url-scrapper">
+  <enum id="org.gnome.shell.extensions.url-scrapper.position">
+    <value value="0" nick="center"/>
+    <value value="1" nick="right"/>
+    <value value="2" nick="left"/>
+  </enum>
+  <enum id="org.gnome.shell.extensions.url-scrapper.wind-dir-indicators">
+    <value value="0" nick="arrows"/>
+    <value value="1" nick="letters"/>
+  </enum>
+  <schema path="/org/gnome/shell/extensions/url-scrapper/" id="org.gnome.shell.extensions.url-scrapper">
+    <key type="s" name="scrappers">
+      <default>'[]'</default>
+      <summary>URLs to scrap data from</summary>
+    </key>
+  </schema>
+</schemalist>
