@@ -24,54 +24,54 @@
  *
  */
 
+ /* exported showDialogBox,
+  showMessage
+ */
 function showDialogBox(message, title, callback) {
-  const Gettext = imports.gettext.domain('gnome-shell-extension-url-scrapper');
-  const _ = Gettext.gettext;
   const Gtk = imports.gi.Gtk;
 
-  let dialog = new Gtk.Dialog({title : !!title ? title : ""});
-	let entry = new Gtk.Entry();
+  let dialog = new Gtk.Dialog({title: !!title ? title: ''});
+  let entry = new Gtk.Entry();
   entry.margin_top = 12;
-	entry.margin_bottom = 12;
-  let label = new Gtk.Label({label : !!message ? message : ""});
+  entry.margin_bottom = 12;
+  let label = new Gtk.Label({label: !!message ? message: ''});
 
-	dialog.set_border_width(12);
-	dialog.set_modal(1);
-	dialog.set_resizable(0);
+  dialog.set_border_width(12);
+  dialog.set_modal(1);
+  dialog.set_resizable(0);
 
-	dialog.add_button(Gtk.STOCK_CANCEL, 0);
-	let okButton = dialog.add_button(Gtk.STOCK_OK, 1);
+  dialog.add_button(Gtk.STOCK_CANCEL, 0);
+  let okButton = dialog.add_button(Gtk.STOCK_OK, 1);
 
-	okButton.set_can_default(true);
-	okButton.sensitive = 0;
+  okButton.set_can_default(true);
+  okButton.sensitive = 0;
 
-	dialog.set_default(okButton);
+  dialog.set_default(okButton);
 
-  entry.connect("changed",function(textInput) {
+  entry.connect('changed', function(textInput) {
     okButton.sensitive = 0;
-    if(!!textInput)
-    {
+    if (!!textInput) {
       okButton.sensitive = 1;
     }
     return 0;
   });
 
-  let dialog_area = dialog.get_content_area();
+  let dialogArea = dialog.get_content_area();
 
-	dialog_area.pack_start(label,0,0,0);
-	dialog_area.pack_start(entry,0,0,0);
-  dialog.connect("response", function(w, response_id)
-  {
+  dialogArea.pack_start(label, 0, 0, 0);
+  dialogArea.pack_start(entry, 0, 0, 0);
+  dialog.connect('response', function(w, responseId) {
     let text = entry.get_text();
-    if(response_id && text)
-    {
-      if(!!callback) callback(text);
+    if (responseId && text) {
+      if (!!callback) {
+        callback(text);
+      }
     }
     dialog.destroy();
     return 0;
   });
 
-	dialog.show_all();
+  dialog.show_all();
 }
 
 function showMessage(message) {
@@ -81,7 +81,7 @@ function showMessage(message) {
 
     let text;
     if (!text) {
-        text =  new St.Label({ style_class: 'helloworld-label', text: message });
+        text = new St.Label({style_class: 'helloworld-label', text: message});
         Main.uiGroup.add_actor(text);
     }
 
@@ -92,17 +92,15 @@ function showMessage(message) {
     text.set_position(monitor.x + Math.floor(monitor.width / 2 - text.width / 2),
                       monitor.y + Math.floor(monitor.height / 2 - text.height / 2));
 
-    let hideMsg = function()
-    {
+    let hideMsg = function() {
         Main.uiGroup.remove_actor(text);
         text = null;
     };
     Tweener.addTween(text,
-                     { opacity: 0,
+                     {opacity: 0,
                        time: 20,
                        transition: 'easeOutQuad',
-                       onComplete: hideMsg });
+                       onComplete: hideMsg});
 
     text.connect('button-press-event', hideMsg);
-
 }
