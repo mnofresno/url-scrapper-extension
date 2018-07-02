@@ -156,7 +156,9 @@ const URLScrapperExtension = function() {
     message.request_headers.append('Authorization', 'bearer ' + scrapperConfig.token);
     _httpSession.queue_message(message, function(_httpSession, message) {
           if (message.status_code !== 200) {
-            showMessage(message.toString());
+            let error = 'HTTP status: ' + message.status_code +
+              '\nHTTP request error: ' + message.response_body.toString();
+            log(error);
             return;
           }
 
