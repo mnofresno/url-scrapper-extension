@@ -61,11 +61,13 @@ const URLScrapperExtension = function() {
   const self = new PanelMenuButton();
 
   let _httpSession;
-  let receivedData;
   self.output = [];
 
+  self.scrappersConfig = {};
+  self.scrappersData = {};
+
   self._init = function() {
-    self.settingsHelper = new Convenience.SettingsHelper(self._refresh);
+    self.settingsHelper = new Convenience.SettingsHelper(self.onConfigUpdate);
     let box = new St.BoxLayout();
     let icon = new St.Icon({icon_name: 'system-search-symbolic', style_class: 'system-status-icon'});
     self.buttonText = new St.Label({text: ' Loading... ',
@@ -77,41 +79,20 @@ const URLScrapperExtension = function() {
 
     self.actor.add_child(box);
 
-    let resumen = new PopupMenu.PopupMenuItem('Resumen');
     let config = new PopupMenu.PopupMenuItem('Extension settings...');
     let about = new PopupMenu.PopupMenuItem('About...');
     config.connect('activate', self.onPreferencesActivate);
-    resumen.connect('activate', function() {
-      self._showResumen();
-    });
     about.connect('activate', function() {
       let aboutFileContents = String(GLib.file_get_contents(EXTENSIONDIR + '/ABOUT')[1]);
       showMessage(aboutFileContents);
     });
 
-    self.menu.addMenuItem(resumen);
     self.menu.addMenuItem(config);
     self.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
     self.menu.addMenuItem(about);
 
-    self.output = new Array(self.settingsHelper.getScrappers().length);
-
+    self.onConfigUpdate();
     self._refresh();
-  };
-
-  self._showResumen = function() {
-    let f = function() {
-      let r = receivedData.resumen;
-      showMessage('Diferencia: $ ' + r.diferencia +
-                  '\nTotal: $ ' + r.total +
-                  '\nTotal Mensual: $ ' + r.totalMensual +
-                  '\nTotal Reintegros Mensuales: $ ' + r.reintegroMensualTotal +
-                  '\nTotal Mensual Propio: $ ' + r.totalMensualPropio);
-    };
-
-    if (!!receivedData) {
-      f();
-    }
   };
 
   self._refresh = function() {
@@ -130,25 +111,49 @@ const URLScrapperExtension = function() {
   };
 
   self._loadData = function() {
+    let scrappers = self.scrappersConfig;
+    let scrappersKeys = Object.keys(scrappers);
+    for (let currentIndex = 0; currentIndex < scrappersKeys.length; currentIndex++) {
+      let scrapperKey = scrappersKeys[currentIndex];
+      let currentScrapperConfig = scrappers[scrapperKey];
+      self._loadItemData(scrapperKey, currentScrapperConfig);
+    }
+  };
+
+  self.onConfigUpdate = function() {
     let scrappers = self.settingsHelper.getScrappers();
+    self.scrappersConfig = {};
     let invalidScrappers = 0;
-    for (let currentIndex = 0; currentIndex < scrappers.length; currentIndex++) {
-      let currentScrapper = scrappers[currentIndex];
-      if (!self.isValidScrapper(currentScrapper)) {
+    self.output = new Array(scrappers.length);
+    for (let i = 0; i < scrappers.length; i++) {
+      let scrapperConfig = scrappers[i];
+      if (!self.isValidScrapper(scrapperConfig)) {
         invalidScrappers++;
         continue;
       }
-      self._loadItemData(currentIndex, currentScrapper);
+      let pathProjector = function(input) {
+        try {
+          let projector = new Function('x', 'return x' + scrapperConfig.path + ';');
+          return projector(input);
+        } catch (ex) {
+          return '';
+        }
+      };
+      scrapperConfig.pathProjector = pathProjector;
+      let key = self.toLowerDashSeparated(scrapperConfig.name);
+      self.scrappersConfig[key] = scrapperConfig;
+      self._refreshUI(key);
     }
     if (invalidScrappers === scrappers.length) {
       self.buttonText.text = 'no valid scrappers configured';
     }
   };
 
-  self._loadItemData = function(currentIndex, currentScrapper) {
+  self._loadItemData = function(scrapperKey, scrapperConfig) {
     _httpSession = new Soup.Session();
-    let message = Soup.form_request_new_from_hash('GET', currentScrapper.url, {});
-    message.request_headers.append('Authorization', 'bearer ' + currentScrapper.token);
+    let message = Soup.form_request_new_from_hash(!!scrapperConfig.method ?
+      scrapperConfig.method : 'GET', scrapperConfig.url, {});
+    message.request_headers.append('Authorization', 'bearer ' + scrapperConfig.token);
     _httpSession.queue_message(message, function(_httpSession, message) {
           if (message.status_code !== 200) {
             showMessage(message.toString());
@@ -156,32 +161,29 @@ const URLScrapperExtension = function() {
           }
 
           let json = JSON.parse(message.response_body.data);
-
-          /* jshint evil:true */
-          let pathProjector = new Function('x', 'return x' + currentScrapper.path + ';');
-          /* jshint evil:false */
-
-          self._refreshUI({
-            rawJson: json,
-            symbol: currentScrapper.symbol,
-            path: pathProjector,
-            currentIndex: currentIndex,
-          });
-          if (currentIndex === 1) {
-            receivedData = json;
-          }
+          self.scrappersData[scrapperKey] = json;
+          self._refreshUI(scrapperKey);
         }
     );
   };
 
-  self._refreshUI = function(data) {
-    let textOutput = data.path(data.rawJson);
+  self.toLowerDashSeparated = function(input) {
+    return input.toString().replace(/\s/g, '_');
+  };
 
-    textOutput = data.symbol + ' ' + textOutput;
-
-    self.output[data.currentIndex] = textOutput;
-
-    self.buttonText.set_text(self.output.join(' | '));
+  self._refreshUI = function(scrapperKey) {
+    let scrapperConfig = self.scrappersConfig[scrapperKey];
+    if (!scrapperConfig) {
+      delete self.output[scrapperKey];
+    } else {
+      let scrapperData = self.scrappersData[self.toLowerDashSeparated(scrapperConfig.name)];
+      let textOutput = scrapperConfig.pathProjector(scrapperData);
+      textOutput = scrapperConfig.symbol + ' ' + textOutput;
+      self.output[scrapperKey] = textOutput;
+    }
+    self.buttonText.set_text(Object.keys(self.output).map(function(key) {
+      return self.output[key];
+    }).join(' | '));
   };
 
   self._removeTimeout = function() {

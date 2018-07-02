@@ -212,7 +212,6 @@ const UrlScrapperPrefsWidget = function() {
   };
 
   self.saveEditingItem = function() {
-
     if (!self.editingItem || isNaN(self.editingItemIndex)) {
       return;
     }
@@ -222,17 +221,13 @@ const UrlScrapperPrefsWidget = function() {
     scrappers[self.editingItemIndex] = self.editingItem;
 
     self.settingsHelper.setScrappers(scrappers);
-
   };
 
   self.addScrapper = function() {
-
     showDialogBox('Add new URL Scrapper',
       'Please write the name',
       function(input) {
-
         let scrappers = self.settingsHelper.getScrappers();
-
         self.editingItemIndex = scrappers.length;
         self.editingItem = {name: input};
         scrappers.push(self.editingItem);
@@ -245,6 +240,7 @@ const UrlScrapperPrefsWidget = function() {
     let scrappers = self.settingsHelper.getScrappers();
     scrappers.splice(self.editingItemIndex, 1);
     self.settingsHelper.setScrappers(scrappers);
+    self.changeSelection();
     return 0;
   };
 
