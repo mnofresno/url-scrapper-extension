@@ -1,4 +1,6 @@
-URL Scrapper GNOME Shell Extension
+# URL Scrapper GNOME Shell Extension
+
+![Alt text](screenshot.png?raw=true "URL Scrapper screenshot")
 
 This extension allows you to configure multiple URLs to scrap data from
 
