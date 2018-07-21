@@ -28,6 +28,16 @@
 
 const Gtk = imports.gi.Gtk;
 
+function ConfigItem(control, propertyName, propertyType) {
+  let self = this;
+
+  self.control = control;
+  self.propertyName = propertyName;
+  self.propertyType = propertyType;
+
+  return self;
+}
+
 function UiControls(target) {
   let self = target;
 
@@ -47,12 +57,10 @@ function UiControls(target) {
   self.addTextBox = function(b) {
     let entry = new Gtk.Entry();
 
-    self.configWidgets.push([entry, b]);
+    self.configWidgets.push(new ConfigItem(entry, b, 'string'));
     entry.visible = 1;
     entry.can_focus = 1;
     entry.width_request = 100;
-
-    entry.active_id = String(b);
     entry.connect('changed', function() {
       self.editingItem[b] = entry.get_text();
       self.saveEditingItem();
@@ -60,8 +68,20 @@ function UiControls(target) {
 
     rightWidget.attach(entry, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
     self.inc();
+  };
 
-    return 0;
+  self.addSwitch = function(b) {
+    let sw = new Gtk.Switch();
+    self.configWidgets.push(new ConfigItem(sw, b, 'boolean'));
+    sw.visible = 1;
+    sw.can_focus = 0;
+    sw.connect('notify::active', function(...args) {
+      self.editingItem[b] = args[0].active;
+      self.saveEditingItem();
+    });
+
+    rightWidget.attach(sw, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
+    self.inc();
   };
 
   self.inc = function(...args) {

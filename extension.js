@@ -107,7 +107,8 @@ const URLScrapperExtension = function() {
       !!scrapper.path &&
       !!scrapper.name &&
       !!scrapper.token &&
-      !!scrapper.symbol;
+      !!scrapper.symbol &&
+      scrapper.active === true;
   };
 
   self._loadData = function() {

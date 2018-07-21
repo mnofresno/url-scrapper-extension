@@ -109,6 +109,9 @@ const UrlScrapperPrefsWidget = function() {
     self.addLabel('Result data symbol:');
     self.addTextBox('symbol');
 
+    self.addLabel('Enabled:');
+    self.addSwitch('active');
+
     let scrappers = self.settingsHelper.getScrappers();
     self.editingItemIndex = 0;
     self.changeSelection();
@@ -162,24 +165,21 @@ const UrlScrapperPrefsWidget = function() {
       // {
       //   config[i][0].active_id = String(self[config[i][1]]);
       // }
-      // else if(typeof config[i][0].active_id == 'undefined' && config[i][0].active != self[config[i][1]])
-      // {
-      //   config[i][0].active = self[config[i][1]];
-      // }
-      if (typeof config[i][0].get_text !== 'undefined') {
-        let propertyName = config[i][1];
+      if (config[i].propertyType === 'boolean') {
+        config[i].control.active = self.editingItem[config[i].propertyName];
+      } else if (config[i].propertyType === 'string') {
+        let propertyName = config[i].propertyName;
         let value = self.editingItem[propertyName];
         if (!!value) {
-          config[i][0].set_text(String(value));
+          config[i].control.set_text(String(value));
         } else {
-          config[i][0].set_text('');
+          config[i].control.set_text('');
         }
       }
     }
   };
 
   self.initConfigWidget = function() {
-    self.configWidgets.splice(0, self.configWidgets.length);
     let rightWidgetTable = self.Window.get_object('right-widget-table');
     rightWidgetTable.visible = 1;
     rightWidgetTable.can_focus = 0;
