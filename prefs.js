@@ -74,8 +74,13 @@ const UrlScrapperPrefsWidget = function() {
     self.Iter = self.liststore.get_iter_first();
     self.treeViewSelection = self.Window.get_object('treeview-selection');
     let addScrapperButton = self.Window.get_object('tree-toolbutton-add');
+    self.goDownButton = self.Window.get_object('tree-toolbutton-go-down');
+    self.goUpButton = self.Window.get_object('tree-toolbutton-go-up');
     self.removeScrapperButton = self.Window.get_object('tree-toolbutton-remove');
+
     addScrapperButton.connect('clicked', self.addScrapper);
+    self.goDownButton.connect('clicked', self.moveDownScrapper);
+    self.goUpButton.connect('clicked', self.moveUpScrapper);
     self.removeScrapperButton.connect('clicked', self.removeScrapper);
     self.treeViewSelection.connect('changed', self.selectionChanged);
 
@@ -125,9 +130,11 @@ const UrlScrapperPrefsWidget = function() {
   self.refreshUI = function() {
     let scrappers = self.settingsHelper.getScrappers();
 
+    self.goDownButton.sensitive = self.editingItemIndex < scrappers.length - 1;
+    self.goUpButton.sensitive = self.editingItemIndex > 0;
     self.removeScrapperButton.sensitive = Boolean(scrappers.length);
 
-    let scrappersVariation = !!(scrappers.length - self.mScrappers.length);
+    let scrappersVariation = JSON.stringify(scrappers) !== JSON.stringify(self.mScrappers);
 
     if (!scrappersVariation) {
       for (let i = 0; i < scrappers.length; i++) {
@@ -244,6 +251,37 @@ const UrlScrapperPrefsWidget = function() {
     scrappers.splice(self.editingItemIndex, 1);
     self.settingsHelper.setScrappers(scrappers);
     self.changeSelection();
+    return 0;
+  };
+
+  function arrayMove(arr, oldIndex, newIndex) {
+    if (newIndex >= arr.length) {
+        let k = newIndex - arr.length + 1;
+        while (k--) {
+            arr.push(undefined);
+        }
+    }
+    arr.splice(newIndex, 0, arr.splice(oldIndex, 1)[0]);
+    return arr;
+  }
+
+  self.moveUpScrapper = function() {
+    let scrappers = self.settingsHelper.getScrappers();
+    let targetIndex = self.editingItemIndex - 1;
+    self.settingsHelper.setScrappers(arrayMove(scrappers, self.editingItemIndex, targetIndex));
+    self.editingItemIndex = targetIndex;
+    self.changeSelection();
+    self.refreshUI();
+    return 0;
+  };
+
+  self.moveDownScrapper = function() {
+    let scrappers = self.settingsHelper.getScrappers();
+    let targetIndex = self.editingItemIndex + 1;
+    self.settingsHelper.setScrappers(arrayMove(scrappers, self.editingItemIndex, targetIndex));
+    self.editingItemIndex = targetIndex;
+    self.changeSelection();
+    self.refreshUI();
     return 0;
   };
 
