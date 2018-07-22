@@ -101,7 +101,7 @@ const UrlScrapperPrefsWidget = function() {
     self.addTextBox('url');
 
     self.addLabel('Use HTTP Method');
-    self.addComboBox(['GET', 'POST'], 'method');
+    self.addComboBox(['GET', 'POST', 'PUT', 'DELETE'], 'method');
 
     self.addLabel('Authorization Header token:');
     self.addTextBox('token');
