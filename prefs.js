@@ -100,6 +100,9 @@ const UrlScrapperPrefsWidget = function() {
     self.addLabel('Request URL:');
     self.addTextBox('url');
 
+    self.addLabel('Use HTTP Method');
+    self.addComboBox(['GET', 'POST'], 'method');
+
     self.addLabel('Authorization Header token:');
     self.addTextBox('token');
 
@@ -159,22 +162,22 @@ const UrlScrapperPrefsWidget = function() {
     let config = self.configWidgets;
 
     for (let i in config) {
-      // FIXME: This types of config setter are for Comboboxes and boolean flags
-      // currently we are not using it, but we will use it
-      // if(typeof config[i][0].active_id != 'undefined' && config[i][0].active_id != self[config[i][1]])
-      // {
-      //   config[i][0].active_id = String(self[config[i][1]]);
-      // }
-      if (config[i].propertyType === 'boolean') {
-        config[i].control.active = self.editingItem[config[i].propertyName];
-      } else if (config[i].propertyType === 'string') {
-        let propertyName = config[i].propertyName;
-        let value = self.editingItem[propertyName];
-        if (!!value) {
-          config[i].control.set_text(String(value));
-        } else {
-          config[i].control.set_text('');
-        }
+      let propertyName = config[i].propertyName;
+      let value = self.editingItem[propertyName];
+      switch (config[i].propertyType) {
+        case 'boolean':
+          config[i].control.active = value;
+        break;
+        case 'string':
+          if (!!value) {
+            config[i].control.set_text(String(value));
+          } else {
+            config[i].control.set_text('');
+          }
+        break;
+        case 'option_string':
+          config[i].control.set_text(value);
+        break;
       }
     }
   };

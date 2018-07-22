@@ -54,15 +54,15 @@ function UiControls(target) {
     self.inc();
   };
 
-  self.addTextBox = function(b) {
+  self.addTextBox = function(propertyName) {
     let entry = new Gtk.Entry();
 
-    self.configWidgets.push(new ConfigItem(entry, b, 'string'));
+    self.configWidgets.push(new ConfigItem(entry, propertyName, 'string'));
     entry.visible = 1;
     entry.can_focus = 1;
     entry.width_request = 100;
     entry.connect('changed', function() {
-      self.editingItem[b] = entry.get_text();
+      self.editingItem[propertyName] = entry.get_text();
       self.saveEditingItem();
     });
 
@@ -70,17 +70,49 @@ function UiControls(target) {
     self.inc();
   };
 
-  self.addSwitch = function(b) {
+  self.addSwitch = function(propertyName) {
     let sw = new Gtk.Switch();
-    self.configWidgets.push(new ConfigItem(sw, b, 'boolean'));
+    self.configWidgets.push(new ConfigItem(sw, propertyName, 'boolean'));
     sw.visible = 1;
     sw.can_focus = 0;
     sw.connect('notify::active', function(...args) {
-      self.editingItem[b] = args[0].active;
+      self.editingItem[propertyName] = args[0].active;
       self.saveEditingItem();
     });
 
     rightWidget.attach(sw, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
+    self.inc();
+  };
+
+  self.addComboBox = function(options, propertyName) {
+    let cf = new Gtk.ComboBoxText();
+    cf.visible = 1;
+    cf.can_focus = 0;
+    cf.width_request = 100;
+    cf.append('', 'Select...');
+    for (let i in options) {
+      let currentOption = options[i];
+      cf.append(currentOption, currentOption);
+    }
+    cf.set_text = function(text) {
+      if (!!text) {
+        cf.active_id = String(text);
+      } else {
+        cf.active_id = '';
+      }
+    };
+    let initialValue = self.editingItem[propertyName];
+    cf.set_text(initialValue);
+    cf.connect('changed', function(...args) {
+      try {
+        self.editingItem[propertyName] = String(args[0].get_active_id());
+        self.saveEditingItem();
+      } catch (e) {
+        // FIXME: try to do something with this error
+      }
+    });
+    self.configWidgets.push(new ConfigItem(cf, propertyName, 'option_string'));
+    self.rightWidget.attach(cf, self.x[0], self.x[1], self.y[0], self.y[1], 0, 0, 0, 0);
     self.inc();
   };
 

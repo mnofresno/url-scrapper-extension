@@ -6,6 +6,7 @@
     "rules":{
       "max-len": [2, 120],
       "require-jsdoc": 0,
-      "valid-jsdoc": 0
+      "valid-jsdoc": 0,
+      "guard-for-in":"off"
     }
 }
