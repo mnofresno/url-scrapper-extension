@@ -179,13 +179,20 @@ const URLScrapperExtension = function() {
     if (!scrapperConfig) {
       delete self.output[scrapperKey];
     } else {
-      let scrapperData = self.scrappersData[self.toLowerDashSeparated(scrapperConfig.name)];
+      let scrapperData = self.scrappersData[scrapperKey];
       let textOutput = scrapperConfig.pathProjector(scrapperData);
-      textOutput = scrapperConfig.symbol + ' ' + textOutput;
-      self.output[scrapperKey] = textOutput;
+      let previousData = self.output[scrapperKey];
+      self.output[scrapperKey] = {
+        text: function(dm) { return scrapperConfig.symbol + dm + textOutput; },
+        current: parseFloat(isNaN(parseFloat(textOutput)) ? 0 : textOutput),
+        previous: !!previousData && parseFloat(isNaN(parseFloat(previousData.current)) ? 0 : previousData.current),
+      };
     }
     self.buttonText.set_text(Object.keys(self.output).map(function(key) {
-      return self.output[key];
+      let data = self.output[key];
+      let delta = data.current - data.previous;
+      let deltaMsg = delta > 0 ? '↗' : (delta < 0 ? '↘' : '→');
+      return data.text(deltaMsg);
     }).join(' | '));
   };
 

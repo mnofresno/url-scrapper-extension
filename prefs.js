@@ -56,7 +56,7 @@ const UrlScrapperPrefsWidget = function() {
   self.editingItemIndex = 0;
 
   self._init = function() {
-    self.settingsHelper = new Convenience.SettingsHelper(self.refreshUI);
+    self.settingsHelper = new Convenience.SettingsHelper();
     log('init dialog');
 
     self.initWindow();

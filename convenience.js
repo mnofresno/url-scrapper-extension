@@ -106,7 +106,7 @@ function SettingsHelper(dataChangedCallback) {
 
   self.loadConfig = function() {
     self.Settings = getSettings(URL_SCRAPPER_SETTINGS_SCHEMA);
-    self.SettingsC = self.Settings.connect('changed', dataChangedCallback);
+    if(!!dataChangedCallback) self.SettingsC = self.Settings.connect('changed', dataChangedCallback);
   };
 
   self.getScrappers = function() {
