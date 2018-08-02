@@ -183,7 +183,9 @@ const URLScrapperExtension = function() {
       let textOutput = scrapperConfig.pathProjector(scrapperData);
       let previousData = self.output[scrapperKey];
       self.output[scrapperKey] = {
-        text: function(dm) { return scrapperConfig.symbol + dm + textOutput; },
+        text: function(dm) {
+          return scrapperConfig.symbol + (scrapperConfig.useDelta ? dm : '') + textOutput;
+        },
         current: parseFloat(isNaN(parseFloat(textOutput)) ? 0 : textOutput),
         previous: !!previousData && parseFloat(isNaN(parseFloat(previousData.current)) ? 0 : previousData.current),
       };

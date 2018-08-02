@@ -120,6 +120,9 @@ const UrlScrapperPrefsWidget = function() {
     self.addLabel('Enabled:');
     self.addSwitch('active');
 
+    self.addLabel('Use delta indicator:');
+    self.addSwitch('useDelta');
+
     let scrappers = self.settingsHelper.getScrappers();
     self.editingItemIndex = 0;
     self.changeSelection();
